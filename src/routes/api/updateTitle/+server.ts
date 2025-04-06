@@ -4,10 +4,10 @@ import type { Client } from 'pg';
 
 export async function POST({ request }) {
     const client: Client = getClient();
-    const { amount } = await request.json();
+    const { id, title } = await request.json();
     
     try {
-        await client.query("INSERT INTO money(amount) VALUES (" + amount + ");");
+        await client.query("UPDATE money SET title = '" + title + "' WHERE id = " + id + ";");
         return json("OK");
     } catch (error) {
         return json(error);

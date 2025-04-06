@@ -13,8 +13,23 @@ export async function getList(): Promise<MoneyEntity[]> {
     return returnList;
 }
 
-export async function create(amount: number, title: string) {
+export async function create(amount: number) {
     await fetch("/api/create", {
-        method: "POST", body: JSON.stringify({ amount , title })
+        method: "POST", body: JSON.stringify({ amount })
     });
+}
+
+export async function deleteById(id: number) {
+    if (id == undefined || id == null) return;
+    await fetch("/api/delete", {
+        method: "POST", body: JSON.stringify({ id })
+    });
+}
+
+export async function updateTitle(id: number, title: string) {
+    if (id == undefined || id == null) return;
+    if (title == undefined || title == null || title == "") return;
+    await fetch("/api/updateTitle", {
+        method: "POST", body: JSON.stringify({ id, title })
+    }).then(data => console.log(data));
 }

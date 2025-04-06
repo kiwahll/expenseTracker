@@ -1,20 +1,20 @@
 <script lang="ts">
     import "../app.css";
     import { MoneyEntity } from "$lib/MoneyEntity";
-    import { onMount } from "svelte";
-    import { getList } from "$lib/apiCaller";
+    import { onDestroy, onMount } from "svelte";
+    import { create, deleteById, getList, updateTitle } from "$lib/apiCaller";
 
     var list: Array<MoneyEntity> = $state([]);
-
+    var refreshInterval: NodeJS.Timeout | undefined;
     var realyCanceIndex: number | null = $state(null);
     var moneyEntity: MoneyEntity = $state(new MoneyEntity());
+    var isTitleEdited: boolean = $state(false);
 
-    function addMoneyEntity() {
+    async function addMoneyEntity() {
         if (moneyEntity.amount == undefined) return;
         if (moneyEntity.amount != 0 && moneyEntity.amount < 0) return;
-        console.log(list);
-        list.push(moneyEntity);
-        console.log(list);
+        await create(moneyEntity.amount);
+        await refreshList();
         moneyEntity = new MoneyEntity();
     }
 
@@ -22,21 +22,49 @@
         realyCanceIndex = i;
     }
 
-    function actuallyDelete(i: number) {
+    async function actuallyDelete(i: number) {
         if (realyCanceIndex == null) return;
-        list.splice(realyCanceIndex, 1);
+        if (list[realyCanceIndex] != undefined) {
+            await deleteById(Number(list[realyCanceIndex].id));
+            await refreshList();
+        }
         realyCanceIndex = null;
     }
 
-    onMount(async () => {
+    async function refreshList() {
+        if (isTitleEdited) return;
         await getList().then(data => list = data);
+    }
+
+    onMount(async () => {
+        await refreshList();
+        refreshInterval = setInterval(refreshList, 3000);
     });
+
+    onDestroy(async () => {
+        if (refreshInterval != undefined) {
+            clearInterval(refreshInterval);
+        }
+    });
+
+    async function onFocus() {
+        refreshInterval = setInterval(refreshList, 3000);
+        await refreshList();
+    }
+
+    async function titleOnChange(id?: number, title?: string) {
+        if (id == undefined || id < 0) return;
+        if (title == undefined || title == "") return;
+        await updateTitle(id, title);
+        await refreshList();
+    }
 </script>
 
 <meta
     name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
 />
+<svelte:window on:focus={onFocus} on:blur={() => clearInterval(refreshInterval)} />
 
 <div class="h-60 flex items-center justify-center">
     <input
@@ -51,17 +79,22 @@
     {#if list.length != 0}
         <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Ausgaben</li>
     {/if}
-    {#each list as moneyEntity, i}
+    {#each list as listMoneyEntity, i}
         <li class="list-row">
             <div>
-                <span class="text-3xl font-bold">{moneyEntity.amount}</span>
+                <span class="text-3xl font-bold">{listMoneyEntity.amount}</span>
                 <span class="text-3xl font-semibold">€</span>
             </div>
             <input
                 type="text"
                 class="input w-full"
-                bind:value={moneyEntity.title}
-                onchange={() => console.log(moneyEntity.title)}
+                bind:value={listMoneyEntity.title}
+                onchange={async () => titleOnChange(listMoneyEntity.id, listMoneyEntity.title)}
+                onfocus={() => isTitleEdited = true}
+                onblur={async () => {
+                    isTitleEdited = false;
+                    refreshList();
+                }}
             />
             {#if i == realyCanceIndex}
                 <button
