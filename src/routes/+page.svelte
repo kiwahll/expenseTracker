@@ -114,12 +114,6 @@
 		return sum;
 	}
 </script>
-
-<meta
-	name="viewport"
-	content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
-/>
-<meta name="theme-color" content="#000000">
 <svelte:window
 	on:focus={onFocus}
 	on:blur={() => clearInterval(refreshInterval)}
@@ -135,15 +129,12 @@
 	/>
 </div>
 {#each [...testMap] as [key, value]}
-	<div class="collapse bg-base-100">
+	<div class="collapse bg-base-100 border border-base-300">
 		<input type="radio" name="my-accordion-1" checked="checked" />
 		<div class="collapse-title flex gap-4">
-			<div class="font-semibold text-xl">
-				{addUpMoneyList(value)}€
-			</div>
-			<div>
-				{convertDateStrig(key)}
-			</div>
+			<span class="text-xl">
+				{addUpMoneyList(value)}€ {convertDateStrig(key)}
+			</span>
 		</div>
 		<div class="collapse-content">
 			<ul class="list bg-base-100 rounded-box shadow-md">
