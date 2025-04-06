@@ -7,7 +7,7 @@ export async function getList(): Promise<MoneyEntity[]> {
         .then((response) => response.json())
         .then(data => {
             data.forEach((money: any) => {
-                returnList.push(new MoneyEntity(money.id, Number(money.amount), money.title));
+                returnList.push(new MoneyEntity(money.id, Number(money.amount), money.title, new Date(money.date)));
             });
         });
     return returnList;
