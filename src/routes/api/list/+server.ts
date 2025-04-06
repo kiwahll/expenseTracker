@@ -6,7 +6,7 @@ export async function GET() {
     const client: Client = getClient();
 
     try {
-        const result = await client.query("SELECT * FROM money");
+        const result = await client.query("SELECT * FROM money ORDER BY id;");
         return json(result.rows);
     } catch (error) {
         return json(error);

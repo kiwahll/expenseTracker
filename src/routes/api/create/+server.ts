@@ -7,7 +7,7 @@ export async function POST({ request }) {
     const { amount } = await request.json();
     
     try {
-        await client.query("INSERT INTO money(amount) VALUES (" + amount + ");");
+        await client.query("INSERT INTO money(amount, date) VALUES (" + amount + ", '" + new Date(Date.now()).toISOString().split('T')[0] + "');");
         return json("OK");
     } catch (error) {
         return json(error);
