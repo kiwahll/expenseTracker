@@ -2,118 +2,45 @@
 	import "../app.css";
 	import { MoneyEntity } from "$lib/MoneyEntity";
 	import { onDestroy, onMount } from "svelte";
-	import { create, deleteById, getList, updateTitle } from "$lib/apiCaller";
+	import { MoneyUtils } from "$lib/MoneyUtils";
 
 	var testMap: Map<string, MoneyEntity[]> = $state(
 		new Map<string, MoneyEntity[]>(),
 	);
 	var list: Array<MoneyEntity> = $state([]);
 	var refreshInterval: NodeJS.Timeout | undefined;
-	var realyCanceIndex: number | null = $state(null);
+	var realyCanceIndex: number | undefined = $state(undefined);
 	var moneyEntity: MoneyEntity = $state(new MoneyEntity());
 	var isTitleEdited: boolean = $state(false);
-	var firstDateString: string = $state("");
-
-	async function addMoneyEntity() {
-		if (moneyEntity.amount == undefined) return;
-		if (moneyEntity.amount != 0 && moneyEntity.amount < 0) return;
-		await create(moneyEntity.amount);
-		await refreshList();
-		moneyEntity = new MoneyEntity();
-	}
 
 	function armDelete(i: number) {
 		realyCanceIndex = i;
 	}
 
-	async function actuallyDelete() {
-		if (realyCanceIndex == null) return;
-		if (list[realyCanceIndex] != undefined) {
-			await deleteById(Number(list[realyCanceIndex].id));
-			await refreshList();
+	async function updateList() {
+		if (!isTitleEdited) {
+			await MoneyUtils.fetchGroupedEntities().then((data) => {
+				testMap = data.testMap;
+				list = data.list;
+			});
 		}
-		realyCanceIndex = null;
-	}
-
-	async function refreshList() {
-		if (isTitleEdited) return;
-		await getList().then((data) => (list = data));
-
-		testMap = new Map<string, MoneyEntity[]>();
-		var currentString: string = "";
-		list.forEach((money) => {
-			if (money.date == undefined) return;
-			var maybeNewString: string = money.date?.getFullYear().toString();
-			if (money.date?.getMonth().toString().length == 1) {
-				maybeNewString += "0" + money.date?.getMonth().toString();
-			} else {
-				maybeNewString += money.date?.getMonth().toString();
-			}
-			if (currentString != maybeNewString) {
-				currentString = maybeNewString;
-			}
-
-			if (testMap.get(currentString) == undefined) {
-				testMap.set(currentString, [money]);
-			} else {
-				if (testMap.get(currentString) != undefined) {
-					var aslökdfjaslökdjf: MoneyEntity[] =
-						testMap.get(currentString);
-					aslökdfjaslökdjf.push(money);
-				}
-			}
-
-			if (firstDateString == "") {
-				firstDateString = currentString;
-			}
-		});
-		console.log(testMap);
 	}
 
 	onMount(async () => {
-		await refreshList();
-		refreshInterval = setInterval(refreshList, 3000);
+		await updateList();
+		refreshInterval = setInterval(updateList, 3000);
 	});
 
 	onDestroy(async () => {
-		if (refreshInterval != undefined) {
-			clearInterval(refreshInterval);
-		}
+		clearInterval(refreshInterval);
 	});
 
 	async function onFocus() {
-		refreshInterval = setInterval(refreshList, 3000);
-		await refreshList();
-	}
-
-	async function titleOnChange(id?: number, title?: string) {
-		if (id == undefined || id < 0) return;
-		if (title == undefined || title == "") return;
-		await updateTitle(id, title);
-		await refreshList();
-	}
-
-	function convertDateStrig(dateString: string) {
-		var dateStringArray = dateString.match(/.{1,4}/g);
-		if (dateStringArray == undefined) return "";
-		return (
-			Intl.DateTimeFormat("de", { month: "long" }).format(
-				new Date(dateStringArray[1]),
-			) +
-			" " +
-			dateStringArray[0]
-		);
-	}
-
-	function addUpMoneyList(list: MoneyEntity[]) {
-		var sum: number = 0;
-		list.forEach(moneyEntity => {
-			if (moneyEntity.amount == undefined) return;
-			sum += moneyEntity.amount;
-		});
-		return sum;
+		await updateList();
+		refreshInterval = setInterval(updateList, 3000);
 	}
 </script>
+
 <svelte:window
 	on:focus={onFocus}
 	on:blur={() => clearInterval(refreshInterval)}
@@ -124,16 +51,26 @@
 		type="number"
 		inputmode="numeric"
 		class="input w-20 text-center"
-		onchange={() => addMoneyEntity()}
+		onchange={() => {
+			MoneyUtils.addMoneyEntity(moneyEntity);
+			updateList();
+		}}
 		bind:value={moneyEntity.amount}
 	/>
 </div>
-{#each [...testMap] as [key, value]}
+{#each [...testMap] as [key, value], i}
 	<div class="collapse bg-base-100 border border-base-300">
-		<input type="radio" name="my-accordion-1" checked="checked" />
+		<input
+			type="radio"
+			name="my-accordion-1"
+			checked={i == 0}
+			onchange={(realyCanceIndex = undefined)}
+		/>
 		<div class="collapse-title flex gap-4">
 			<span class="text-xl">
-				{addUpMoneyList(value)}€ {convertDateStrig(key)}
+				{MoneyUtils.addUpMoneyList(value)}€ {MoneyUtils.convertDateString(
+					key,
+				)}
 			</span>
 		</div>
 		<div class="collapse-content">
@@ -150,22 +87,31 @@
 							type="text"
 							class="input w-full"
 							bind:value={listMoneyEntity.title}
-							onchange={async () =>
-								titleOnChange(
+							onchange={async () => {
+								MoneyUtils.updateEntityTitle(
 									listMoneyEntity.id,
 									listMoneyEntity.title,
-								)}
+								);
+								updateList();
+							}}
 							onfocus={() => (isTitleEdited = true)}
 							onblur={async () => {
 								isTitleEdited = false;
-								refreshList();
+								await updateList();
 							}}
 						/>
 						{#if i == realyCanceIndex}
 							<button
 								aria-label="actuallyDelete"
 								class="btn btn-square w-16"
-								onclick={() => actuallyDelete()}
+								onclick={() => {
+									if (realyCanceIndex == undefined) return;
+									MoneyUtils.deleteEntityById(
+										list[realyCanceIndex].id,
+									);
+									updateList();
+									realyCanceIndex = undefined;
+								}}
 							>
 								<svg
 									width="20px"

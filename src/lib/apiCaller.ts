@@ -20,7 +20,6 @@ export async function create(amount: number) {
 }
 
 export async function deleteById(id: number) {
-    if (id == undefined || id == null) return;
     await fetch("/api/delete", {
         method: "POST", body: JSON.stringify({ id })
     });
